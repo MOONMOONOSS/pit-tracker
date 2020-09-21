@@ -34,6 +34,17 @@ pub struct BotConfig {
   pub warn_threshold: u16,
 }
 
+impl BotConfig {
+  pub fn read_config() -> Result<Self, Box<dyn Error>> {
+    use std::io::BufReader;
+
+    let file = File::open("./config.yaml")?;
+    let reader = BufReader::new(file);
+
+    Ok(serde_yaml::from_reader(reader)?)
+  }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PunishedUser {
   pub(self) id: UserId,
@@ -47,18 +58,9 @@ impl PartialEq<serenity::model::prelude::User> for &mut PunishedUser {
   }
 }
 
-fn read_config() -> Result<BotConfig, Box<dyn Error>> {
-  use std::io::BufReader;
-
-  let file = File::open("./config.yaml")?;
-  let reader = BufReader::new(file);
-
-  Ok(serde_yaml::from_reader(reader)?)
-}
-
 #[tokio::main]
 async fn main() {
-  let config = Arc::new(read_config().unwrap());
+  let config = Arc::new(BotConfig::read_config().unwrap());
   let state = BotState::new();
 
   let framework = StandardFramework::new()
