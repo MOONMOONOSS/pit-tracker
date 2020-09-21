@@ -14,7 +14,8 @@ use serenity::{
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-use crate::{BotConfig, BotState, PunishedUser};
+use crate::{BotConfig, PunishedUser};
+use crate::state::BotState;
 
 pub(crate) struct BotHandler {
   pub(self) state: Arc<Mutex<BotState>>,
