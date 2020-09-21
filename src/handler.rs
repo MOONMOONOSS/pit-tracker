@@ -64,7 +64,6 @@ impl EventHandler for BotHandler {
 
   async fn guild_member_update(&self, ctx: Context, _: Option<Member>, new: Member) {
     if new.roles.contains(&self.config.punishment_role) {
-      let mut should_warn: bool = false;
       let mut user: Option<PunishedUser> = None;
       {
         let mut state = self.state.lock().expect("Unable to read from state");
@@ -73,8 +72,6 @@ impl EventHandler for BotHandler {
           if punished.id == new.user.id {
             punished.times_punished += 1;
             punished.last_punish = SystemTime::now();
-
-            should_warn = punished.times_punished >= self.config.warn_threshold;
 
             user = Some(punished.clone());
 
@@ -90,10 +87,12 @@ impl EventHandler for BotHandler {
             times_punished: 1,
             last_punish: SystemTime::now(),
           });
+
+          return
         }
       }
 
-      if should_warn && user.is_some() {
+      if user.is_some() {
         self.warn_mods(&ctx, &user.unwrap()).await;
       }
     }
