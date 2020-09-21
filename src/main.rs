@@ -76,6 +76,7 @@ impl TypeMapKey for State {
 }
 
 #[command]
+#[only_in(guilds)]
 #[allowed_roles("Moderators")]
 async fn removepit(ctx: &Context, msg: &Message, arg: Args) -> CommandResult {
   use serenity::utils::parse_mention;
@@ -131,6 +132,7 @@ Active Strikes: `{}`
 }
 
 #[command]
+#[only_in(guilds)]
 #[allowed_roles("Moderators")]
 async fn pitcount(ctx: &Context, msg: &Message, arg: Args) -> CommandResult {
   use serenity::utils::parse_mention;
