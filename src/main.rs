@@ -1,7 +1,6 @@
 #![feature(drain_filter)]
 
 use clokwerk::{Scheduler, TimeUnits};
-use clokwerk::Interval::*;
 
 use serde::{Serialize, Deserialize};
 use serenity::{
@@ -17,6 +16,8 @@ use serenity::{
 };
 
 use std::error::Error;
+use std::fs::File;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
@@ -32,20 +33,51 @@ pub struct BotConfig {
   pub warn_threshold: u16,
 }
 
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct BotState {
   pub(self) bans: u64,
   pub(self) pits: u64,
-  pub(self) uptime: SystemTime,
+  #[serde(skip)]
+  pub(self) uptime: Option<SystemTime>,
+  #[serde(skip)]
   pub(self) users: Vec<PunishedUser>,
 }
 
 impl BotState {
   pub fn new() -> Arc<Mutex<Self>> {
+    use std::io::BufReader;
+
+    let mut users: Option<Vec<PunishedUser>> = None;
+    let mut main: Option<Self> = None;
+
+    if Path::new("./punished_users.yaml").is_file() {
+      let file = File::open("./punished_users.yaml").unwrap();
+      let reader = BufReader::new(file);
+
+      users = Some(serde_yaml::from_reader(reader).unwrap());
+    } else {
+      return Arc::new(Mutex::new(Self {
+        bans: 0,
+        pits: 0,
+        uptime: Some(SystemTime::now()),
+        users: vec![],
+      }))
+    }
+
+    if Path::new("./bot_stats.yaml").is_file() {
+      let file = File::open("./bot_stats.yaml").unwrap();
+      let reader = BufReader::new(file);
+
+      main = Some(serde_yaml::from_reader(reader).unwrap());
+    }
+
+    let unwrapped_main = main.unwrap_or_default();
+
     Arc::new(Mutex::new(Self {
-      bans: 0,
-      pits: 0,
-      uptime: SystemTime::now(),
-      users: vec![],
+      bans: unwrapped_main.bans,
+      pits: unwrapped_main.pits,
+      uptime: Some(SystemTime::now()),
+      users: users.unwrap_or_default(),
     }))
   }
 
@@ -78,9 +110,28 @@ New users with no strikes: {}"#,
       clean_record,
     )
   }
+
+  pub fn flatdb_save(&self) -> Result<(), Box<dyn Error>> {
+    if Path::new("./punished_users.yaml").is_file() {
+      use std::fs;
+
+      fs::copy("./punished_users.yaml", "./punished_users.yaml.backup")?;
+    }
+
+    if Path::new("./bot_stats.yaml").is_file() {
+      use std::fs;
+
+      fs::copy("./bot_stats.yaml", "./bot_stats.yaml.backup")?;
+    }
+
+    serde_yaml::to_writer(&File::create("./punished_users.yaml")?, &self.users)?;
+    serde_yaml::to_writer(&File::create("./bot_stats.yaml")?, &self)?;
+
+    Ok(())
+  }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PunishedUser {
   pub(self) id: UserId,
   pub times_punished: u16,
@@ -94,7 +145,6 @@ impl PartialEq<serenity::model::prelude::User> for &mut PunishedUser {
 }
 
 fn read_config() -> Result<BotConfig, Box<dyn Error>> {
-  use std::fs::File;
   use std::io::BufReader;
 
   let file = File::open("./config.yaml")?;
@@ -129,7 +179,27 @@ async fn main() {
       state.periodic_strike_removal(&cloned_config);
     });
   }
+
+  {
+    let sch_state = Arc::clone(&state);
+    scheduler.every(10.minutes()).run(move || {
+      let state = sch_state.lock().expect("Unable to read from state");
+
+      state.flatdb_save().unwrap();
+    });
+  }
+
+  let thread_handle = scheduler.watch_thread(Duration::from_millis(100));
+  
   if let Err(why) = client.start().await {
     println!("Serenity error: {:?}", why);
+
+    thread_handle.stop();
+
+    state
+      .lock()
+      .expect("Unable to read from state")
+      .flatdb_save()
+      .unwrap();
   }
 }
