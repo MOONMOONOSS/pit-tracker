@@ -5,7 +5,6 @@ use clokwerk::{Scheduler, TimeUnits};
 use serde::{Serialize, Deserialize};
 use serenity::{
   model::{
-    guild::Role,
     id::{
       ChannelId,
       RoleId,
@@ -13,7 +12,7 @@ use serenity::{
     },
   },
   prelude::*,
-};
+framework::StandardFramework};
 
 use std::error::Error;
 use std::fs::File;
@@ -29,7 +28,7 @@ pub struct BotConfig {
   pub settle_time: u16,
   pub(crate) token: String,
   pub warn_channel: ChannelId,
-  pub warn_role: Role,
+  pub warn_role: RoleId,
   pub warn_threshold: u16,
 }
 
@@ -158,6 +157,12 @@ async fn main() {
   let config = Arc::new(read_config().unwrap());
   let state = BotState::new();
 
+  let framework = StandardFramework::new()
+    .configure(|c| c
+      .with_whitespace(true)
+      .prefix("!")
+    );
+
   let mut client = Client::new(&config.token)
     .event_handler(
       handler::BotHandler::new(
@@ -165,6 +170,7 @@ async fn main() {
         Arc::clone(&config),
       )
     )
+    .framework(framework)
     .await
     .expect("Error creating Discord client");
   

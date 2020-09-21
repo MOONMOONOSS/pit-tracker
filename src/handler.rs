@@ -26,10 +26,12 @@ impl BotHandler {
     let usr = punished.id.to_user(&ctx).await.unwrap();
     let _ = self.config.warn_channel.send_message(&ctx, |m| {
       m.allowed_mentions(|am| {
-        am.roles(vec![*(self.config.warn_role.id).as_u64()]);
+        am.roles(vec![*(self.config.warn_role).as_u64()]);
 
         am
       });
+
+      m.content(format!("<@&{}>", self.config.warn_role.as_u64()));
 
       m.embed(|e| {
         e.title("Pit Threshold Reached");
@@ -45,7 +47,9 @@ Active Strikes: `{}`
       });
 
       m
-    });
+    })
+      .await
+      .unwrap();
   }
 }
 
@@ -77,6 +81,8 @@ impl EventHandler for BotHandler {
             break;
           }
         }
+
+        state.pits += 1;
 
         if user.is_none() {
           state.users.push(PunishedUser {
