@@ -1,5 +1,8 @@
 #![feature(drain_filter)]
 
+use clokwerk::{Scheduler, TimeUnits};
+use clokwerk::Interval::*;
+
 use serde::{Serialize, Deserialize};
 use serenity::{
   model::{
@@ -12,13 +15,14 @@ use serenity::{
   },
   prelude::*,
 };
+
 use std::error::Error;
 use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 mod handler;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct BotConfig {
   pub punishment_role: RoleId,
   pub settle_time: u16,
@@ -43,6 +47,36 @@ impl BotState {
       uptime: SystemTime::now(),
       users: vec![],
     }))
+  }
+
+  pub fn periodic_strike_removal(&mut self, config: &BotConfig) {
+    let settle_duration = Duration::from_secs((config.settle_time * 60 * 60 * 24) as u64);
+    let mut punishments_forgiven: u64 = 0;
+    let mut clean_record: u64 = 0;
+
+    self.users.drain_filter(|user| {
+      if user.last_punish.elapsed().expect("Jebaited by Daylight Savings") >= settle_duration {
+        user.last_punish = SystemTime::now();
+        user.times_punished -= 1;
+        punishments_forgiven += 1;
+      }
+
+      if user.times_punished == 0 {
+        clean_record += 1;
+
+        true
+      } else {
+        false
+      }
+    });
+
+    println!(
+r#"Periodic Strike Removal Report
+Punishments Forgiven: {}
+New users with no strikes: {}"#,
+      punishments_forgiven,
+      clean_record,
+    )
   }
 }
 
@@ -71,19 +105,30 @@ fn read_config() -> Result<BotConfig, Box<dyn Error>> {
 
 #[tokio::main]
 async fn main() {
-  let config = read_config().unwrap();
+  let config = Arc::new(read_config().unwrap());
   let state = BotState::new();
 
   let mut client = Client::new(&config.token)
     .event_handler(
       handler::BotHandler::new(
         Arc::clone(&state),
-        config
+        Arc::clone(&config),
       )
     )
     .await
     .expect("Error creating Discord client");
   
+  let mut scheduler = Scheduler::new();
+
+  {
+    let sch_state = Arc::clone(&state);
+    let cloned_config = Arc::clone(&config);
+    scheduler.every(1.day()).run(move || {
+      let mut state = sch_state.lock().expect("Unable to read from state");
+
+      state.periodic_strike_removal(&cloned_config);
+    });
+  }
   if let Err(why) = client.start().await {
     println!("Serenity error: {:?}", why);
   }

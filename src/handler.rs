@@ -18,7 +18,7 @@ use crate::{BotConfig, BotState, PunishedUser};
 
 pub(crate) struct BotHandler {
   pub(self) state: Arc<Mutex<BotState>>,
-  pub(self) config: BotConfig,
+  pub(self) config: Arc<BotConfig>,
 }
 
 impl BotHandler {
@@ -107,7 +107,7 @@ impl EventHandler for BotHandler {
 }
 
 impl BotHandler {
-  pub(crate) fn new(data: Arc<Mutex<BotState>>, config: BotConfig) -> Self {
+  pub(crate) fn new(data: Arc<Mutex<BotState>>, config: Arc<BotConfig>) -> Self {
     Self {
       state: Arc::clone(&data),
       config,
