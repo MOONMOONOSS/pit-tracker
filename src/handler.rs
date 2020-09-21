@@ -25,14 +25,6 @@ impl BotHandler {
   pub(self) async fn warn_mods(&self, ctx: &Context, punished: &PunishedUser) {
     let usr = punished.id.to_user(&ctx).await.unwrap();
     let _ = self.config.warn_channel.send_message(&ctx, |m| {
-      m.allowed_mentions(|am| {
-        am.roles(vec![*(self.config.warn_role).as_u64()]);
-
-        am
-      });
-
-      m.content(format!("<@&{}>", self.config.warn_role.as_u64()));
-
       m.embed(|e| {
         e.title("Pit Threshold Reached");
         e.description(format!(r#"
