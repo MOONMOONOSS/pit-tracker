@@ -5,6 +5,7 @@ use clokwerk::{Scheduler, TimeUnits};
 use serde::{Serialize, Deserialize};
 use serenity::{
   model::{
+    channel::Message,
     id::{
       ChannelId,
       RoleId,
@@ -12,11 +13,17 @@ use serenity::{
     },
   },
   prelude::*,
-framework::StandardFramework};
+  framework::{
+    StandardFramework,
+    standard::Args,
+    standard::CommandResult,
+    standard::macros::*,
+  },
+utils::Color};
 
 use std::error::Error;
 use std::fs::File;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 mod handler;
@@ -58,6 +65,169 @@ impl PartialEq<serenity::model::prelude::User> for &mut PunishedUser {
   }
 }
 
+#[group]
+#[commands(removepit, pitcount, mypits)]
+struct General;
+
+struct State;
+
+impl TypeMapKey for State {
+  type Value = Arc<Mutex<BotState>>;
+}
+
+#[command]
+#[allowed_roles("Moderators")]
+async fn removepit(ctx: &Context, msg: &Message, arg: Args) -> CommandResult {
+  use serenity::utils::parse_mention;
+
+  if arg.is_empty() {
+    return Ok(())
+  }
+
+  let target = UserId(
+    parse_mention(
+      arg.current().unwrap()
+    ).unwrap()
+  );
+
+  let data = ctx.data.read().await;
+  let mut clone: Option<PunishedUser> = None;
+  if let Some(lock) = data.get::<State>() {
+    let mut state = lock.lock().expect("Unable to read from state");
+
+    for user in state.users.iter_mut() {
+      if user.id == target && user.times_punished != 0 {
+        user.times_punished -= 1;
+        clone = Some(user.clone());
+        
+        break;
+      }
+    }
+  }
+
+  if let Some(user) = clone {
+    msg.channel_id.send_message(&ctx, |m| {
+      m.embed(|e| {
+        e.title("Strike Removed");
+        e.description(format!(r#"
+Strike for <@{}> removed
+Active Strikes: `{}`
+"#, &user.id, &user.times_punished)
+        );
+        e.color(Color::ROHRKATZE_BLUE);
+
+        e
+      });
+
+      m
+    })
+      .await
+      ?;
+  } else {
+    msg.reply(&ctx, "User has no pits").await?;
+  }
+
+  Ok(())
+}
+
+#[command]
+#[allowed_roles("Moderators")]
+async fn pitcount(ctx: &Context, msg: &Message, arg: Args) -> CommandResult {
+  use serenity::utils::parse_mention;
+
+  if arg.is_empty() {
+    return Ok(())
+  }
+
+  let target = UserId(
+    parse_mention(
+      arg.current().unwrap()
+    ).unwrap()
+  );
+
+  let data = ctx.data.read().await;
+  let mut clone: Option<PunishedUser> = None;
+  if let Some(lock) = data.get::<State>() {
+    let state = lock.lock().expect("Unable to read from state");
+
+    for user in state.users.iter() {
+      if user.id == target {
+        clone = Some(user.clone());
+        
+        break;
+      }
+    }
+  }
+
+  if let Some(user) = clone {
+    msg.channel_id.send_message(&ctx, |m| {
+      m.embed(|e| {
+        e.title(format!("Pit Stats for {}", &user.id));
+        e.description(format!(r#"
+User: <@{}>
+Active Strikes: `{}`
+"#, &user.id, &user.times_punished)
+        );
+        e.color(Color::ROHRKATZE_BLUE);
+
+        e
+      });
+
+      m
+    })
+      .await
+      ?;
+  } else {
+    msg.reply(&ctx, "Record not found").await?;
+  }
+
+  Ok(())
+}
+
+#[command]
+#[only_in(dm)]
+async fn mypits(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
+  let target = msg.author.id;
+
+  let data = ctx.data.read().await;
+  let mut clone: Option<PunishedUser> = None;
+  if let Some(lock) = data.get::<State>() {
+    let state = lock.lock().expect("Unable to read from state");
+
+    for user in state.users.iter() {
+      if user.id == target {
+        clone = Some(user.clone());
+        
+        break;
+      }
+    }
+  }
+
+  if let Some(user) = clone {
+    msg.channel_id.send_message(&ctx, |m| {
+      m.embed(|e| {
+        e.title(format!("Pit Stats for {}", &user.id));
+        e.description(format!(r#"
+User: <@{}>
+Active Strikes: `{}`
+"#, &user.id, &user.times_punished)
+        );
+        e.color(Color::ROHRKATZE_BLUE);
+
+        e
+      });
+
+      m
+    })
+      .await
+      ?;
+  } else {
+    msg.reply(&ctx, "Record not found").await?;
+  }
+
+  Ok(())
+}
+
 #[tokio::main]
 async fn main() {
   let config = Arc::new(BotConfig::read_config().unwrap());
@@ -67,7 +237,8 @@ async fn main() {
     .configure(|c| c
       .with_whitespace(true)
       .prefix("!")
-    );
+    )
+    .group(&GENERAL_GROUP);
 
   let mut client = Client::new(&config.token)
     .event_handler(
@@ -80,6 +251,11 @@ async fn main() {
     .await
     .expect("Error creating Discord client");
   
+  {
+    let mut data = client.data.write().await;
+    data.insert::<State>(Arc::clone(&state));
+  }
+
   let mut scheduler = Scheduler::new();
 
   {

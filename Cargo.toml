@@ -1,6 +1,6 @@
 [package]
 name = "pit-tracker"
-version = "1.0.0"
+version = "1.0.3"
 authors = ["Joseph Zurowski <12567900+Dunklheit@users.noreply.github.com>"]
 edition = "2018"
 
