@@ -3,13 +3,12 @@
 use serde::{Serialize, Deserialize};
 use serenity::{
   model::{
-    channel::GuildChannel,
     guild::Role,
     id::{
+      ChannelId,
       RoleId,
       UserId
     },
-    user::User,
   },
   prelude::*,
 };
@@ -24,7 +23,7 @@ pub struct BotConfig {
   pub punishment_role: RoleId,
   pub settle_time: u16,
   pub(crate) token: String,
-  pub warn_channel: GuildChannel,
+  pub warn_channel: ChannelId,
   pub warn_role: Role,
   pub warn_threshold: u16,
 }
@@ -47,9 +46,9 @@ impl BotState {
   }
 }
 
+#[derive(Clone)]
 pub struct PunishedUser {
   pub(self) id: UserId,
-  pub(self) user: User,
   pub times_punished: u16,
   pub last_punish: SystemTime,
 }

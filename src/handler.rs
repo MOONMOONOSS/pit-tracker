@@ -5,18 +5,16 @@ use serenity::{
     event::ResumedEvent,
     gateway::Ready,
     guild::Member,
-    id::{
-      GuildId,
-      RoleId,
-    },
+    id::GuildId,
     user::User,
   },
   prelude::Context,
+  utils::Color,
 };
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-use crate::{BotConfig, BotState};
+use crate::{BotConfig, BotState, PunishedUser};
 
 pub(crate) struct BotHandler {
   pub(self) state: Arc<Mutex<BotState>>,
@@ -24,8 +22,30 @@ pub(crate) struct BotHandler {
 }
 
 impl BotHandler {
-  pub(self) fn warn_mods(&self, ctx: &Context, member: &Member) {
-    
+  pub(self) async fn warn_mods(&self, ctx: &Context, punished: &PunishedUser) {
+    let usr = punished.id.to_user(&ctx).await.unwrap();
+    let _ = self.config.warn_channel.send_message(&ctx, |m| {
+      m.allowed_mentions(|am| {
+        am.roles(vec![*(self.config.warn_role.id).as_u64()]);
+
+        am
+      });
+
+      m.embed(|e| {
+        e.title("Pit Threshold Reached");
+        e.description(format!(r#"
+User: <@{}>
+Also known as: `{}`
+Active Strikes: `{}`
+"#, punished.id, usr.tag(), punished.times_punished)
+        );
+        e.color(Color::ORANGE);
+
+        e
+      });
+
+      m
+    });
   }
 }
 
@@ -39,26 +59,36 @@ impl EventHandler for BotHandler {
   }
 
   async fn guild_member_update(&self, ctx: Context, _: Option<Member>, new: Member) {
-    let mut should_warn: bool = false;
-
     if new.roles.contains(&self.config.punishment_role) {
+      let mut should_warn: bool = false;
+      let mut user: Option<PunishedUser> = None;
       {
         let mut state = self.state.lock().expect("Unable to read from state");
 
         for punished in state.users.iter_mut() {
-          if punished.user == new.user {
+          if punished.id == new.user.id {
             punished.times_punished += 1;
             punished.last_punish = SystemTime::now();
 
             should_warn = punished.times_punished >= self.config.warn_threshold;
 
+            user = Some(punished.clone());
+
             break;
           }
         }
+
+        if user.is_none() {
+          state.users.push(PunishedUser {
+            id: new.user.id,
+            times_punished: 1,
+            last_punish: SystemTime::now(),
+          });
+        }
       }
 
-      if should_warn {
-
+      if should_warn && user.is_some() {
+        self.warn_mods(&ctx, &user.unwrap()).await;
       }
     }
   }
