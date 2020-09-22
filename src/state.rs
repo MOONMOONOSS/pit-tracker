@@ -67,6 +67,7 @@ impl BotState {
       println!("Last Punish: {}, Settle Time: {}", user.last_punish.elapsed().expect("Jebaited by Daylight Savings").as_secs(), settle_duration.as_secs());
 
       if user.last_punish.elapsed().expect("Jebaited by Daylight Savings").as_secs() >= settle_duration.as_secs() {
+        user.last_punish = SystemTime::now();
         user.times_punished -= 1;
         punishments_forgiven += 1;
       }
