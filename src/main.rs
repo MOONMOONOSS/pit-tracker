@@ -66,13 +66,19 @@ impl PartialEq<serenity::model::prelude::User> for &mut PunishedUser {
 }
 
 #[group]
-#[commands(removepit, pitcount, mypits)]
+#[commands(removepit, pitcount, mypits, housekeeping)]
 struct General;
 
 struct State;
 
 impl TypeMapKey for State {
   type Value = Arc<Mutex<BotState>>;
+}
+
+struct Config;
+
+impl TypeMapKey for Config {
+  type Value = Arc<BotConfig>;
 }
 
 #[command]
@@ -127,6 +133,22 @@ Active Strikes: `{}`
   } else {
     msg.reply(&ctx, "User has no pits").await?;
   }
+
+  Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+#[allowed_roles("Moderators", "Dev")]
+async fn housekeeping(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
+  let data = ctx.data.read().await;
+  if let Some(lock) = data.get::<State>() {
+    let mut state = lock.lock().expect("Unable to read from state");
+
+    state.periodic_strike_removal(data.get::<Config>().unwrap())
+  }
+
+  msg.reply(&ctx, "Completed housekeeping").await?;
 
   Ok(())
 }
@@ -256,6 +278,7 @@ async fn main() {
   {
     let mut data = client.data.write().await;
     data.insert::<State>(Arc::clone(&state));
+    data.insert::<Config>(Arc::clone(&config));
   }
 
   let mut scheduler = Scheduler::new();

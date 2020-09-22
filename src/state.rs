@@ -58,13 +58,15 @@ impl BotState {
   }
 
   pub fn periodic_strike_removal(&mut self, config: &BotConfig) {
-    let settle_duration = Duration::from_secs((config.settle_time * 60 * 60 * 24) as u64);
+    let settle_duration = Duration::from_secs((config.settle_time as u64 * 60 * 60 * 24) as u64);
+    let total_records = self.users.len();
     let mut punishments_forgiven: u64 = 0;
     let mut clean_record: u64 = 0;
 
     self.users.drain_filter(|user| {
-      if user.last_punish.elapsed().expect("Jebaited by Daylight Savings") >= settle_duration {
-        user.last_punish = SystemTime::now();
+      println!("Last Punish: {}, Settle Time: {}", user.last_punish.elapsed().expect("Jebaited by Daylight Savings").as_secs(), settle_duration.as_secs());
+
+      if user.last_punish.elapsed().expect("Jebaited by Daylight Savings").as_secs() >= settle_duration.as_secs() {
         user.times_punished -= 1;
         punishments_forgiven += 1;
       }
@@ -80,8 +82,10 @@ impl BotState {
 
     println!(
 r#"Periodic Strike Removal Report
+Total Tracked Users: {}
 Punishments Forgiven: {}
 New users with no strikes: {}"#,
+      total_records,
       punishments_forgiven,
       clean_record,
     )
