@@ -145,7 +145,9 @@ async fn housekeeping(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
   if let Some(lock) = data.get::<State>() {
     let mut state = lock.lock().expect("Unable to read from state");
 
-    state.periodic_strike_removal(data.get::<Config>().unwrap())
+    if let Some(config) = data.get::<Config>() {
+      state.periodic_strike_removal(&config);
+    }
   }
 
   msg.reply(&ctx, "Completed housekeeping").await?;
@@ -298,7 +300,10 @@ async fn main() {
     scheduler.every(10.minutes()).run(move || {
       let state = sch_state.lock().expect("Unable to read from state");
 
-      state.flatdb_save().unwrap();
+      match state.flatdb_save() {
+        Ok(_) => {},
+        Err(_) => println!("Error in Database save"),
+      }
     });
   }
 

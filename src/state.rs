@@ -64,12 +64,14 @@ impl BotState {
     let mut clean_record: u64 = 0;
 
     self.users.drain_filter(|user| {
-      println!("Last Punish: {}, Settle Time: {}", user.last_punish.elapsed().expect("Jebaited by Daylight Savings").as_secs(), settle_duration.as_secs());
+      if let Ok(last_punish) = user.last_punish.elapsed() {
+        println!("Last Punish: {}, Settle Time: {}", last_punish.as_secs(), settle_duration.as_secs());
 
-      if user.last_punish.elapsed().expect("Jebaited by Daylight Savings").as_secs() >= settle_duration.as_secs() {
-        user.last_punish = SystemTime::now();
-        user.times_punished -= 1;
-        punishments_forgiven += 1;
+        if last_punish.as_secs() >= settle_duration.as_secs() {
+          user.last_punish = SystemTime::now();
+          user.times_punished -= 1;
+          punishments_forgiven += 1;
+        }
       }
 
       if user.times_punished == 0 {
