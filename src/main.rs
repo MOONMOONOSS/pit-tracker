@@ -67,7 +67,7 @@ impl PartialEq<serenity::model::prelude::User> for &mut PunishedUser {
 }
 
 #[group]
-#[commands(removepit, pitcount, mypits, housekeeping)]
+#[commands(removepit, pitcount, mypits, housekeeping, forcesave)]
 struct General;
 
 struct State;
@@ -152,6 +152,26 @@ async fn housekeeping(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
   }
 
   msg.reply(&ctx, "Completed housekeeping").await?;
+
+  Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+#[allowed_roles("Moderators", "Dev")]
+async fn forcesave(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
+  let data = ctx.data.read().await;
+  let mut ok = false;
+  if let Some(lock) = data.get::<State>() {
+    let state = lock.lock().expect("Unable to read from state");
+
+    ok = state.flatdb_save().is_ok();
+  }
+
+  match ok {
+    true => msg.reply(&ctx, "Saved").await?,
+    false => msg.reply(&ctx, "Error occured in saving file!").await?,
+  };
 
   Ok(())
 }
