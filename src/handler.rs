@@ -96,7 +96,14 @@ impl EventHandler for BotHandler {
   }
 
   async fn ready(&self, _: Context, ready: Ready) {
-    println!("Connected to Discord as {}", ready.user.name);
+    if let Some(shard) = ready.shard {
+      println!(
+        "Connected to Discord as {} on shard {}/{}",
+        ready.user.name,
+        shard[0],
+        shard[1],
+      );
+    }
   }
 
   async fn resume(&self, _: Context, _: ResumedEvent) {
