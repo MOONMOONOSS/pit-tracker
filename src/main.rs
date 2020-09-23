@@ -22,7 +22,7 @@ use serenity::{
 utils::Color};
 use tokio::time::delay_for;
 
-use std::error::Error;
+use std::{error::Error, io::Write};
 use std::fs::File;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
@@ -333,6 +333,11 @@ async fn main() {
     println!("Serenity error: {:?}", why);
 
     thread_handle.stop();
+
+    if let Ok(mut file) = File::create("./crash.log") {
+      file.write_all(why.to_string().as_bytes())
+        .expect("Unable to write to error log");
+    }
 
     state
       .lock()
