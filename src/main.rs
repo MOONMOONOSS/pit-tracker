@@ -20,6 +20,7 @@ use serenity::{
     standard::macros::*,
   },
 utils::Color};
+use tokio::time::delay_for;
 
 use std::error::Error;
 use std::fs::File;
@@ -283,6 +284,25 @@ async fn main() {
     data.insert::<Config>(Arc::clone(&config));
   }
 
+  let manager = client.shard_manager.clone();
+  tokio::spawn(async move {
+    loop {
+      delay_for(Duration::from_secs(30)).await;
+
+      let lock = manager.lock().await;
+      let shard_runners = lock.runners.lock().await;
+
+      for (id, runner) in shard_runners.iter() {
+        println!(
+          "Shard ID {} is {} with a latency of {:?}",
+          id,
+          runner.stage,
+          runner.latency,
+        );
+      }
+    }
+  });
+
   let mut scheduler = Scheduler::new();
 
   {
@@ -309,7 +329,7 @@ async fn main() {
 
   let thread_handle = scheduler.watch_thread(Duration::from_millis(100));
   
-  if let Err(why) = client.start().await {
+  if let Err(why) = client.start_autosharded().await {
     println!("Serenity error: {:?}", why);
 
     thread_handle.stop();
