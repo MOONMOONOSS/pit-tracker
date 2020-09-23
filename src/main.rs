@@ -84,7 +84,7 @@ impl TypeMapKey for Config {
 
 #[command]
 #[only_in(guilds)]
-#[allowed_roles("Moderators")]
+#[allowed_roles("Moderators", "COSMIC GAMER")]
 async fn removepit(ctx: &Context, msg: &Message, arg: Args) -> CommandResult {
   use serenity::utils::parse_mention;
 
@@ -140,7 +140,7 @@ Active Strikes: `{}`
 
 #[command]
 #[only_in(guilds)]
-#[allowed_roles("Moderators", "Dev")]
+#[allowed_roles("Moderators", "Dev", "COSMIC GAMER")]
 async fn housekeeping(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
   let data = ctx.data.read().await;
   if let Some(lock) = data.get::<State>() {
@@ -158,7 +158,7 @@ async fn housekeeping(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
 
 #[command]
 #[only_in(guilds)]
-#[allowed_roles("Moderators", "Dev")]
+#[allowed_roles("Moderators", "Dev", "COSMIC GAMER")]
 async fn forcesave(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
   let data = ctx.data.read().await;
   let mut ok = false;
@@ -178,7 +178,7 @@ async fn forcesave(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
 
 #[command]
 #[only_in(guilds)]
-#[allowed_roles("Moderators")]
+#[allowed_roles("Moderators", "COSMIC GAMER")]
 async fn pitcount(ctx: &Context, msg: &Message, arg: Args) -> CommandResult {
   use serenity::utils::parse_mention;
 
