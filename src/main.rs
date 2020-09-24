@@ -230,10 +230,10 @@ Active Strikes: `{}`
 
 #[command]
 #[only_in(dm)]
-async fn mypits(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
+fn mypits(ctx: &mut Context, msg: &Message, _: Args) -> CommandResult {
   let target = msg.author.id;
 
-  let data = ctx.data.read().await;
+  let data = ctx.data.read();
   let mut clone: Option<PunishedUser> = None;
   if let Some(lock) = data.get::<State>() {
     let state = lock.lock().expect("Unable to read from state");
@@ -262,11 +262,9 @@ Active Strikes: `{}`
       });
 
       m
-    })
-      .await
-      ?;
+    })?;
   } else {
-    msg.reply(&ctx, "Record not found").await?;
+    msg.reply(&ctx, "Record not found")?;
   }
 
   Ok(())
