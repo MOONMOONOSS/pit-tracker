@@ -178,7 +178,7 @@ fn forcesave(ctx: &mut Context, msg: &Message, _: Args) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 #[allowed_roles("Moderators", "COSMIC GAMER")]
-async fn pitcount(ctx: &Context, msg: &Message, arg: Args) -> CommandResult {
+fn pitcount(ctx: &mut Context, msg: &Message, arg: Args) -> CommandResult {
   use serenity::utils::parse_mention;
 
   if arg.is_empty() {
@@ -191,7 +191,7 @@ async fn pitcount(ctx: &Context, msg: &Message, arg: Args) -> CommandResult {
     ).unwrap()
   );
 
-  let data = ctx.data.read().await;
+  let data = ctx.data.read();
   let mut clone: Option<PunishedUser> = None;
   if let Some(lock) = data.get::<State>() {
     let state = lock.lock().expect("Unable to read from state");
@@ -220,11 +220,9 @@ Active Strikes: `{}`
       });
 
       m
-    })
-      .await
-      ?;
+    })?;
   } else {
-    msg.reply(&ctx, "Record not found").await?;
+    msg.reply(&ctx, "Record not found")?;
   }
 
   Ok(())
