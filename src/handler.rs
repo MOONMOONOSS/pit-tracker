@@ -1,5 +1,4 @@
 use serenity::{
-  async_trait,
   client::EventHandler,
   model::{
     event::ResumedEvent,
@@ -23,8 +22,8 @@ pub(crate) struct BotHandler {
 }
 
 impl BotHandler {
-  pub(self) async fn warn_mods(&self, ctx: &Context, punished: &PunishedUser) {
-    let usr = punished.id.to_user(&ctx).await.unwrap();
+  pub(self) fn warn_mods(&self, ctx: &mut Context, punished: &PunishedUser) {
+    let usr = punished.id.to_user(&ctx).unwrap();
     let _ = self.config.warn_channel.send_message(&ctx, |m| {
       m.embed(|e| {
         e.title("Pit Threshold Reached");
@@ -41,7 +40,6 @@ Active Strikes: `{}`
 
       m
     })
-      .await
       .unwrap();
   }
 }
