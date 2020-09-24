@@ -19,8 +19,8 @@ use serenity::{
     standard::CommandResult,
     standard::macros::*,
   },
-utils::Color};
-use tokio::time::delay_for;
+  utils::Color,
+};
 
 use std::{error::Error, io::Write};
 use std::fs::File;
