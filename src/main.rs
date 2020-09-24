@@ -86,7 +86,7 @@ impl TypeMapKey for Config {
 #[command]
 #[only_in(guilds)]
 #[allowed_roles("Moderators", "COSMIC GAMER")]
-async fn removepit(ctx: &Context, msg: &Message, arg: Args) -> CommandResult {
+fn removepit(ctx: &mut Context, msg: &Message, arg: Args) -> CommandResult {
   use serenity::utils::parse_mention;
 
   if arg.is_empty() {
@@ -99,7 +99,7 @@ async fn removepit(ctx: &Context, msg: &Message, arg: Args) -> CommandResult {
     ).unwrap()
   );
 
-  let data = ctx.data.read().await;
+  let data = ctx.data.read();
   let mut clone: Option<PunishedUser> = None;
   if let Some(lock) = data.get::<State>() {
     let mut state = lock.lock().expect("Unable to read from state");
@@ -129,11 +129,9 @@ Active Strikes: `{}`
       });
 
       m
-    })
-      .await
-      ?;
+    })?;
   } else {
-    msg.reply(&ctx, "User has no pits").await?;
+    msg.reply(&ctx, "User has no pits")?;
   }
 
   Ok(())
