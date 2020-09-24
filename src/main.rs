@@ -140,8 +140,8 @@ Active Strikes: `{}`
 #[command]
 #[only_in(guilds)]
 #[allowed_roles("Moderators", "Dev", "COSMIC GAMER")]
-async fn housekeeping(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
-  let data = ctx.data.read().await;
+fn housekeeping(ctx: &mut Context, msg: &Message, _: Args) -> CommandResult {
+  let data = ctx.data.read();
   if let Some(lock) = data.get::<State>() {
     let mut state = lock.lock().expect("Unable to read from state");
 
@@ -150,7 +150,7 @@ async fn housekeeping(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
     }
   }
 
-  msg.reply(&ctx, "Completed housekeeping").await?;
+  msg.reply(&ctx, "Completed housekeeping")?;
 
   Ok(())
 }
