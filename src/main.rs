@@ -158,8 +158,8 @@ fn housekeeping(ctx: &mut Context, msg: &Message, _: Args) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 #[allowed_roles("Moderators", "Dev", "COSMIC GAMER")]
-async fn forcesave(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
-  let data = ctx.data.read().await;
+fn forcesave(ctx: &mut Context, msg: &Message, _: Args) -> CommandResult {
+  let data = ctx.data.read();
   let mut ok = false;
   if let Some(lock) = data.get::<State>() {
     let state = lock.lock().expect("Unable to read from state");
@@ -168,8 +168,8 @@ async fn forcesave(ctx: &Context, msg: &Message, _: Args) -> CommandResult {
   }
 
   match ok {
-    true => msg.reply(&ctx, "Saved").await?,
-    false => msg.reply(&ctx, "Error occured in saving file!").await?,
+    true => msg.reply(&ctx, "Saved")?,
+    false => msg.reply(&ctx, "Error occured in saving file!")?,
   };
 
   Ok(())
