@@ -25,6 +25,7 @@ use tokio::time::delay_for;
 use std::{error::Error, io::Write};
 use std::fs::File;
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::{Duration, SystemTime};
 
 mod handler;
@@ -275,8 +276,7 @@ Active Strikes: `{}`
   Ok(())
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
   let config = Arc::new(BotConfig::read_config().unwrap());
   let state = BotState::new();
 
@@ -287,30 +287,30 @@ async fn main() {
     )
     .group(&GENERAL_GROUP);
 
-  let mut client = Client::new(&config.token)
-    .event_handler(
-      handler::BotHandler::new(
-        Arc::clone(&state),
-        Arc::clone(&config),
-      )
+  let mut client = Client::new(
+    &config.token,
+    handler::BotHandler::new(
+      Arc::clone(&state),
+      Arc::clone(&config),
     )
-    .framework(framework)
-    .await
+  )
     .expect("Error creating Discord client");
   
+  client.with_framework(framework);
+  
   {
-    let mut data = client.data.write().await;
+    let mut data = client.data.write();
     data.insert::<State>(Arc::clone(&state));
     data.insert::<Config>(Arc::clone(&config));
   }
 
   let manager = client.shard_manager.clone();
-  tokio::spawn(async move {
+  thread::spawn(move || {
     loop {
-      delay_for(Duration::from_secs(30)).await;
+      thread::sleep(Duration::from_secs(30));
 
-      let lock = manager.lock().await;
-      let shard_runners = lock.runners.lock().await;
+      let lock = manager.lock();
+      let shard_runners = lock.runners.lock();
 
       for (id, runner) in shard_runners.iter() {
         println!(
@@ -349,7 +349,7 @@ async fn main() {
 
   let thread_handle = scheduler.watch_thread(Duration::from_millis(100));
   
-  if let Err(why) = client.start_autosharded().await {
+  if let Err(why) = client.start_autosharded() {
     println!("Serenity error: {:?}", why);
 
     thread_handle.stop();
