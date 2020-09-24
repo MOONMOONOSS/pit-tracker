@@ -44,23 +44,22 @@ Active Strikes: `{}`
   }
 }
 
-#[async_trait]
 impl EventHandler for BotHandler {
-  async fn guild_ban_addition(&self, _: Context, _: GuildId, banned_user: User) {
+  fn guild_ban_addition(&self, _: Context, _: GuildId, banned_user: User) {
     let mut state = self.state.lock().expect("Unable to read from state");
 
     state.users.drain_filter(|x| x == banned_user);
     state.bans += 1;
   }
 
-  async fn guild_member_update(&self, ctx: Context, _: Option<Member>, new: Member) {
+  fn guild_member_update(&self, mut ctx: Context, _: Option<Member>, new: Member) {
     if new.roles.contains(&self.config.punishment_role) {
       let mut user: Option<PunishedUser> = None;
       {
         let mut state = self.state.lock().expect("Unable to read from state");
 
         for punished in state.users.iter_mut() {
-          if punished.id == new.user.id {
+          if punished.id == new.user_id() {
             punished.times_punished += 1;
             punished.last_punish = SystemTime::now();
 
@@ -74,7 +73,7 @@ impl EventHandler for BotHandler {
 
         if user.is_none() {
           state.users.push(PunishedUser {
-            id: new.user.id,
+            id: new.user_id(),
             times_punished: 1,
             last_punish: SystemTime::now(),
           });
@@ -84,16 +83,16 @@ impl EventHandler for BotHandler {
       }
 
       if user.is_some() {
-        self.warn_mods(&ctx, &user.unwrap()).await;
+        self.warn_mods(&mut ctx, &user.unwrap());
       }
     }
   }
 
-  async fn guild_unavailable(&self, _: Context, id: GuildId) {
+  fn guild_unavailable(&self, _: Context, id: GuildId) {
     println!("Guild# {} has become unavailable!", id);
   }
 
-  async fn ready(&self, _: Context, ready: Ready) {
+  fn ready(&self, _: Context, ready: Ready) {
     if let Some(shard) = ready.shard {
       println!(
         "Connected to Discord as {} on shard {}/{}",
@@ -104,7 +103,7 @@ impl EventHandler for BotHandler {
     }
   }
 
-  async fn resume(&self, _: Context, _: ResumedEvent) {
+  fn resume(&self, _: Context, _: ResumedEvent) {
     println!("Resumed connection to Discord");
   }
 }
