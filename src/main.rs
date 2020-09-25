@@ -77,7 +77,7 @@ impl TypeMapKey for State {
   type Value = Arc<Mutex<BotState>>;
 }
 
-struct Config;
+pub struct Config;
 
 impl TypeMapKey for Config {
   type Value = Arc<BotConfig>;
