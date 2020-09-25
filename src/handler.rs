@@ -55,48 +55,48 @@ impl EventHandler for BotHandler {
   fn guild_member_update(&self, mut ctx: Context, old: Option<Member>, new: Member) {
     let mut user: Option<PunishedUser> = None;
 
+    println!("{:#?}", new);
+
     {
       let current_member = old.is_some();
       let data = ctx.data.read();
       let pit_role = data.get::<crate::Config>().unwrap().warn_role;
+      let old_roles = match old {
+        Some(val) => val.roles,
+        None => vec![],
+      };
 
-      if new.roles.contains(&self.config.punishment_role) {
-        {
-          let mut state = self.state.lock().expect("Unable to read from state");
-          let old_roles = match old {
-            Some(val) => val.roles,
-            None => vec![],
-          };
+      if new.roles.contains(&self.config.punishment_role)
+        && current_member
+        && !old_roles.contains(&pit_role)
+      {
+        let mut state = self.state.lock().expect("Unable to read from state");
 
-          for punished in state.users.iter_mut() {
-            if punished.id == new.user_id()
-              && current_member
-              && !old_roles.contains(&pit_role)
-            {
-              punished.times_punished += 1;
-              punished.last_punish = SystemTime::now();
+        for punished in state.users.iter_mut() {
+          if punished.id == new.user_id() {
+            punished.times_punished += 1;
+            punished.last_punish = SystemTime::now();
 
-              user = Some(punished.clone());
+            user = Some(punished.clone());
 
-              break;
-            }
+            break;
           }
+        }
 
-          state.pits += 1;
+        state.pits += 1;
 
-          if user.is_none() {
-            state.users.push(PunishedUser {
-              id: new.user_id(),
-              times_punished: 1,
-              last_punish: SystemTime::now(),
-            });
+        if user.is_none() {
+          state.users.push(PunishedUser {
+            id: new.user_id(),
+            times_punished: 1,
+            last_punish: SystemTime::now(),
+          });
 
-            return
-          }
+          return
         }
       }
     }
-
+    
     if user.is_some() {
       self.warn_mods(&mut ctx, &user.unwrap());
     }
