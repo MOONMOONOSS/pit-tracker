@@ -58,6 +58,7 @@ impl BotConfig {
 pub struct PunishedUser {
   pub(self) id: UserId,
   pub times_punished: u16,
+  pub pitted: bool,
   pub last_punish: SystemTime,
 }
 

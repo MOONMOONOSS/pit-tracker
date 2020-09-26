@@ -1,6 +1,7 @@
 punishment_role: 195419638182576128
 settle_time: 30
 token: Something Secret
+silence: false
 warn_channel: 755938222810595509
 warn_role: 193277912236032001
 warn_threshold: 1

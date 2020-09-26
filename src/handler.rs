@@ -58,41 +58,43 @@ impl EventHandler for BotHandler {
     println!("{:#?}", new);
 
     {
-      let current_member = old.is_some();
-      let data = ctx.data.read();
-      let pit_role = data.get::<crate::Config>().unwrap().warn_role;
-      let old_roles = match old {
-        Some(val) => val.roles,
-        None => vec![],
-      };
+      let mut state = self.state.lock().expect("Unable to read from state");
+      let mut found = false;
 
-      if new.roles.contains(&self.config.punishment_role)
-        && current_member
-        && !old_roles.contains(&pit_role)
-      {
-        let mut state = self.state.lock().expect("Unable to read from state");
-
+      if new.roles.contains(&self.config.punishment_role) {
         for punished in state.users.iter_mut() {
           if punished.id == new.user_id() {
-            punished.times_punished += 1;
-            punished.last_punish = SystemTime::now();
+            if !punished.pitted {
+              punished.pitted = true;
+              punished.times_punished += 1;
+              punished.last_punish = SystemTime::now();
 
-            user = Some(punished.clone());
+              user = Some(punished.clone());
+            }
+
+            found = true;
 
             break;
           }
         }
 
-        state.pits += 1;
-
-        if user.is_none() {
+        if user.is_none() && !found {
           state.users.push(PunishedUser {
+            pitted: true,
             id: new.user_id(),
             times_punished: 1,
             last_punish: SystemTime::now(),
           });
 
           return
+        }
+      } else if let Some(_) = old {
+        for punished in state.users.iter_mut() {
+          if punished.id == new.user_id() && punished.pitted {
+            punished.pitted = false;
+
+            break;
+          }
         }
       }
     }
