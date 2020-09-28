@@ -55,8 +55,6 @@ impl EventHandler for BotHandler {
   fn guild_member_update(&self, mut ctx: Context, old: Option<Member>, new: Member) {
     let mut user: Option<PunishedUser> = None;
 
-    println!("{:#?}", new);
-
     {
       let mut state = self.state.lock().expect("Unable to read from state");
       let mut found = false;
