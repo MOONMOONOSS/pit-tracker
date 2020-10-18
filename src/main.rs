@@ -28,6 +28,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
+use uuid::Uuid;
+
 mod handler;
 mod state;
 
@@ -66,6 +68,15 @@ impl PartialEq<serenity::model::prelude::User> for &mut PunishedUser {
   fn eq(&self, other: &serenity::model::prelude::User) -> bool {
     self.id == other.id
   }
+}
+
+#[derive(Clone)]
+pub struct Reminder {
+  pub(crate) id: Uuid,
+  pub(crate) author: u64,
+  pub(crate) creation: SystemTime,
+  pub(crate) deadline: Duration,
+  pub(crate) message: String,
 }
 
 #[group]
@@ -282,6 +293,8 @@ fn main() {
     )
     .group(&GENERAL_GROUP);
 
+  let mut scheduler = Scheduler::new();
+
   let mut client = Client::new(
     &config.token,
     handler::BotHandler::new(
@@ -318,11 +331,10 @@ fn main() {
     }
   });
 
-  let mut scheduler = Scheduler::new();
-
   {
     let sch_state = Arc::clone(&state);
     let cloned_config = Arc::clone(&config);
+
     scheduler.every(1.day()).run(move || {
       let mut state = sch_state.lock().expect("Unable to read from state");
 
@@ -332,6 +344,7 @@ fn main() {
 
   {
     let sch_state = Arc::clone(&state);
+
     scheduler.every(10.minutes()).run(move || {
       let state = sch_state.lock().expect("Unable to read from state");
 
@@ -340,6 +353,17 @@ fn main() {
         Err(_) => println!("Error in Database save"),
       }
     });
+
+    {
+      let sch_state = Arc::clone(&state);
+      let cloned_http = Arc::clone(&client.cache_and_http.http);
+
+      scheduler.every(1.minutes()).run(move || {
+        let mut state = sch_state.lock().expect("Unable to read from state");
+  
+        state.reminder_check(&cloned_http, &config);
+      });
+    }
   }
 
   let thread_handle = scheduler.watch_thread(Duration::from_millis(100));

@@ -1,13 +1,14 @@
 use serde::{Serialize, Deserialize};
-use std::{
-  path::Path,
-  error::Error,
-  fs::File,
-};
+use serenity::{http::Http, utils::Color};
+use std::{error::Error, fs::File, path::Path};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
-use crate::{PunishedUser, BotConfig};
+use crate::{
+  PunishedUser,
+  BotConfig,
+  Reminder,
+};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct BotState {
@@ -17,6 +18,8 @@ pub struct BotState {
   pub(self) uptime: Option<SystemTime>,
   #[serde(skip)]
   pub(crate) users: Vec<PunishedUser>,
+  #[serde(skip)]
+  pub(crate) reminders: Vec<Reminder>,
 }
 
 impl BotState {
@@ -37,6 +40,7 @@ impl BotState {
         pits: 0,
         uptime: Some(SystemTime::now()),
         users: vec![],
+        reminders: vec![],
       }))
     }
 
@@ -54,7 +58,42 @@ impl BotState {
       pits: unwrapped_main.pits,
       uptime: Some(SystemTime::now()),
       users: users.unwrap_or_default(),
+      reminders: vec![],
     }))
+  }
+
+  pub fn reminder_check(&mut self, ctx: &Arc<Http>, config: &BotConfig) {
+    println!("Reminder check...");
+
+    self.reminders.drain_filter(|reminder| {
+      if reminder.creation.elapsed().unwrap().as_secs() >= reminder.deadline.as_secs() {
+        let channel = config.warn_channel;
+
+        channel.send_message(&ctx, |m| {
+          m.embed(|e| {
+            e.title("Reminder");
+            e.description(&reminder.message);
+            e.color(Color::BLURPLE);
+            e.author(|a| {
+              if let Ok(author) = ctx.get_user(reminder.author) {
+                a.icon_url(author.avatar_url().unwrap_or_default());
+                a.name(author.name);
+              }
+
+              a
+            });
+
+            e
+          });
+
+          m
+        }).unwrap();
+        
+        true
+      } else {
+        false
+      }
+    });
   }
 
   pub fn periodic_strike_removal(&mut self, config: &BotConfig) {
