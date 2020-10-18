@@ -2,6 +2,8 @@
 
 use clokwerk::{Scheduler, TimeUnits};
 
+use humantime::parse_duration;
+
 use serde::{Serialize, Deserialize};
 use serenity::{
   model::{
@@ -70,6 +72,58 @@ impl PartialEq<serenity::model::prelude::User> for &mut PunishedUser {
   }
 }
 
+pub struct ReminderBuilder<'a> {
+  pub(crate) author: Option<u64>,
+  pub(crate) creation: Option<SystemTime>,
+  pub(crate) deadline: Option<Duration>,
+  pub(crate) message: Option<&'a str>,
+}
+
+impl<'a> ReminderBuilder<'a> {
+  pub fn new() -> Self {
+    Self {
+      author: None,
+      creation: None,
+      deadline: None,
+      message: None,
+    }
+  }
+
+  pub fn author(&mut self, author: u64) -> &mut Self {
+    self.author = Some(author);
+
+    self
+  }
+
+  pub fn creation(&mut self) -> &mut Self {
+    self.creation = Some(SystemTime::now());
+
+    self
+  }
+
+  pub fn deadline(&mut self, deadline: Duration) -> &mut Self {
+    self.deadline = Some(deadline);
+
+    self
+  }
+
+  pub fn message(&mut self, message: &'a str) -> &mut Self {
+    self.message = Some(message);
+
+    self
+  }
+
+  pub fn build(self) -> Reminder {
+    Reminder {
+      id: Uuid::new_v4(),
+      author: self.author.unwrap_or_default(),
+      creation: self.creation.unwrap(),
+      deadline: self.deadline.unwrap_or_default(),
+      message: self.message.unwrap().to_owned(),
+    }
+  }
+}
+
 #[derive(Clone)]
 pub struct Reminder {
   pub(crate) id: Uuid,
@@ -93,6 +147,51 @@ pub struct Config;
 
 impl TypeMapKey for Config {
   type Value = Arc<BotConfig>;
+}
+
+#[command]
+#[only_in(guilds)]
+#[allowed_roles("Moderators", "COSMIC GAMER")]
+fn remindme(ctx: &mut Context, msg: &Message, mut arg: Args) -> CommandResult {
+  let message = arg.single_quoted::<String>()?;
+  let time = parse_duration(&arg.single_quoted::<String>()?).unwrap();
+
+  println!("Message: {:#?}", message);
+  println!("Time: {:#?}", time);
+
+  let mut reminder: Option<Reminder> = None;
+  {
+    let mut builder = ReminderBuilder::new();
+    builder.author(*msg.author.id.as_u64());
+    builder.creation();
+    builder.message(&message);
+    builder.deadline(time);
+
+    reminder = Some(builder.build());
+  }
+
+  let mut data = ctx.data.write();
+
+  if let Some(lock) = data.get_mut::<State>() {
+    let mut state = lock.lock().expect("Unable to read from state");
+
+    if let Some(r) = reminder {
+      let id = r.id;
+      state.add_reminder(r);
+
+      msg.reply(
+        &ctx,
+        format!(
+          "Reminder created! (`{}`)",
+          id
+            .to_hyphenated()
+            .encode_lower(&mut Uuid::encode_buffer())
+        )
+      )?;
+    }
+  }
+
+  Ok(())
 }
 
 #[command]

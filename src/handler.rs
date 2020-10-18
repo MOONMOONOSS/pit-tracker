@@ -1,4 +1,4 @@
-use serenity::{client::EventHandler, model::{event::ResumedEvent, gateway::Ready, guild::Member, id::GuildId, id::UserId, user::User}, prelude::Context, utils::Color};
+use serenity::{client::EventHandler, model::{event::ResumedEvent, gateway::Ready, guild::Member, id::GuildId, user::User}, prelude::Context, utils::Color};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 

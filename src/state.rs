@@ -96,6 +96,10 @@ impl BotState {
     });
   }
 
+  pub fn add_reminder(&mut self, reminder: Reminder) {
+    self.reminders.push(reminder);
+  }
+
   pub fn periodic_strike_removal(&mut self, config: &BotConfig) {
     let settle_duration = Duration::from_secs((config.settle_time as u64 * 60 * 60 * 24) as u64);
     let total_records = self.users.len();
