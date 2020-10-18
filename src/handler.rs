@@ -1,15 +1,4 @@
-use serenity::{
-  client::EventHandler,
-  model::{
-    event::ResumedEvent,
-    gateway::Ready,
-    guild::Member,
-    id::GuildId,
-    user::User,
-  },
-  prelude::Context,
-  utils::Color,
-};
+use serenity::{client::EventHandler, model::{event::ResumedEvent, gateway::Ready, guild::Member, id::GuildId, id::UserId, user::User}, prelude::Context, utils::Color};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
@@ -19,29 +8,6 @@ use crate::state::BotState;
 pub(crate) struct BotHandler {
   pub(self) state: Arc<Mutex<BotState>>,
   pub(self) config: Arc<BotConfig>,
-}
-
-impl BotHandler {
-  pub(self) fn warn_mods(&self, ctx: &mut Context, punished: &PunishedUser) {
-    let usr = punished.id.to_user(&ctx).unwrap();
-    let _ = self.config.warn_channel.send_message(&ctx, |m| {
-      m.embed(|e| {
-        e.title("Pit Threshold Reached");
-        e.description(format!(r#"
-User: <@{}>
-Also known as: `{}`
-Active Strikes: `{}`
-"#, punished.id, usr.tag(), punished.times_punished)
-        );
-        e.color(Color::ORANGE);
-
-        e
-      });
-
-      m
-    })
-      .unwrap();
-  }
 }
 
 impl EventHandler for BotHandler {
@@ -128,5 +94,26 @@ impl BotHandler {
       state: Arc::clone(&data),
       config,
     }
+  }
+
+  pub(self) fn warn_mods(&self, ctx: &mut Context, punished: &PunishedUser) {
+    let usr = punished.id.to_user(&ctx).unwrap();
+    let _ = self.config.warn_channel.send_message(&ctx, |m| {
+      m.embed(|e| {
+        e.title("Pit Threshold Reached");
+        e.description(format!(r#"
+User: <@{}>
+Also known as: `{}`
+Active Strikes: `{}`
+"#, punished.id, usr.tag(), punished.times_punished)
+        );
+        e.color(Color::ORANGE);
+
+        e
+      });
+
+      m
+    })
+      .unwrap();
   }
 }
