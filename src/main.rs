@@ -197,6 +197,45 @@ fn remindme(ctx: &mut Context, msg: &Message, mut arg: Args) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 #[allowed_roles("Moderators", "COSMIC GAMER")]
+fn removereminder(ctx: &mut Context, msg: &Message, mut arg: Args) -> CommandResult {
+  match arg.single::<String>() {
+    Ok(uuid) => {
+      let uuid = Uuid::from_slice(&uuid.as_bytes()).unwrap();
+      let mut data = ctx.data.write();
+
+      if let Some(lock) = data.get_mut::<State>() {
+        let mut state = lock.lock().expect("Unable to read from state");
+
+        println!("Target UUID: {}", uuid
+          .to_hyphenated()
+          .encode_lower(&mut Uuid::encode_buffer())
+        );
+
+        state.reminders.drain_filter(|r| {
+          let test = r.id == uuid;
+          println!("Current UUID: {}", r.id
+            .to_hyphenated()
+            .encode_lower(&mut Uuid::encode_buffer())
+          );
+          println!("TEST: {}", test);
+
+          let _ = msg.reply(&ctx, "Reminder removed!");
+
+          test
+        });
+      }
+    },
+    Err(_) => {
+      msg.reply(&ctx, "Reminder not found")?;
+    },
+  };
+
+  Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+#[allowed_roles("Moderators", "COSMIC GAMER")]
 fn removepit(ctx: &mut Context, msg: &Message, arg: Args) -> CommandResult {
   use serenity::utils::parse_mention;
 
